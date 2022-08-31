@@ -12,6 +12,7 @@ import {
   indent,
 } from "../document/builders.js";
 import { replaceEndOfLine } from "../document/utils.js";
+import UnexpectedNodeError from "../utils/unexpected-node-error.js";
 import embed from "./embed.js";
 import clean from "./clean.js";
 import { insertPragma } from "./pragma.js";
@@ -90,14 +91,6 @@ import { printDecorators } from "./print/decorators.js";
 
 function genericPrint(path, options, print, args) {
   const node = path.getValue();
-
-  if (node === undefined || node === null) {
-    return "";
-  }
-
-  if (process.env.NODE_ENV !== "production") {
-    ensurePrintingNode(path);
-  }
 
   const printed = printPathNoParens(path, options, print, args);
   if (!printed) {
@@ -799,10 +792,7 @@ function printPathNoParens(path, options, print, args) {
 
     default:
       /* istanbul ignore next */
-      throw Object.assign(
-        new Error("Unknown node type: " + JSON.stringify(node.type)),
-        { node }
-      );
+      throw new UnexpectedNodeError(node, "ESTree");
   }
 }
 
@@ -836,46 +826,6 @@ function canAttachComment(node) {
     // `babel-ts` don't have similar node for `class Foo { bar() /* bat */; }`
     node.type !== "TSEmptyBodyFunctionExpression"
   );
-}
-
-function ensurePrintingNode(path) {
-  let name = path.getName();
-
-  // AST root
-  if (name === null) {
-    return;
-  }
-
-  if (typeof name === "number") {
-    /*
-    Nodes in array are stored in path.stack like
-
-    ```js
-    [
-      parentNode,
-      property, // <-
-      array,
-      index,
-      node,
-    ]
-    ```
-    */
-    name = path.stack[path.stack.length - 4];
-  }
-
-  const parent = path.getParentNode();
-  const visitorKeys = getVisitorKeys(parent);
-  if (visitorKeys.includes(name)) {
-    return;
-  }
-
-  /* istanbul ignore next */
-  throw Object.assign(new Error("Calling `print()` on non-node object."), {
-    parentNode: parent,
-    allowedProperties: visitorKeys,
-    printingProperty: name,
-    printingValue: path.getValue(),
-  });
 }
 
 const printer = {

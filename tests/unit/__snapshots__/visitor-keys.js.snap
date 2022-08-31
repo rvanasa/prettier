@@ -1362,6 +1362,7 @@ exports[`visitor keys postcss 1`] = `
     "nodes",
   ],
   "css-root": [
+    "frontMatter",
     "nodes",
   ],
   "css-rule": [
@@ -1637,6 +1638,7 @@ exports[`visitor keys yaml 1`] = `
     "endComments",
   ],
   "flowSequenceItem": [
+    "content",
     "children",
     "anchor",
     "tag",

@@ -660,7 +660,11 @@ async function parseWithParser(parse, text, options) {
     if (typeof line !== "number") {
       throw error;
     }
-    throw createError(`${name}: ${reason}`, { start: { line, column } });
+
+    throw createError(`${name}: ${reason}`, {
+      loc: { start: { line, column } },
+      cause: error,
+    });
   }
 
   options.originalText = text;
@@ -673,7 +677,7 @@ async function parseWithParser(parse, text, options) {
       startOffset: 0,
       endOffset: frontMatter.raw.length,
     };
-    result.nodes.unshift(frontMatter);
+    result.frontMatter = frontMatter;
   }
 
   return result;

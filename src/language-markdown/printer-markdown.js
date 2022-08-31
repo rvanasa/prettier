@@ -23,6 +23,7 @@ import {
 import { normalizeDoc, replaceEndOfLine } from "../document/utils.js";
 import { printDocToString } from "../document/printer.js";
 import createGetVisitorKeys from "../utils/create-get-visitor-keys.js";
+import UnexpectedNodeError from "../utils/unexpected-node-error.js";
 import embed from "./embed.js";
 import { insertPragma } from "./pragma.js";
 import { locStart, locEnd } from "./loc.js";
@@ -38,6 +39,8 @@ import {
   isAutolink,
 } from "./utils.js";
 import visitorKeys from "./visitor-keys.js";
+
+const getVisitorKeys = createGetVisitorKeys(visitorKeys);
 
 /**
  * @typedef {import("../document/builders.js").Doc} Doc
@@ -456,7 +459,7 @@ function genericPrint(path, options, print) {
     case "export": // transformed in to `importExport`
     default:
       /* istanbul ignore next */
-      throw new Error(`Unknown markdown type ${JSON.stringify(node.type)}`);
+      throw new UnexpectedNodeError(node, "Markdown");
   }
 }
 
@@ -918,7 +921,7 @@ const printer = {
   massageAstNode: clean,
   hasPrettierIgnore,
   insertPragma,
-  getVisitorKeys: createGetVisitorKeys(visitorKeys),
+  getVisitorKeys,
 };
 
 export default printer;

@@ -5,6 +5,7 @@
 import { fill, group, hardline } from "../document/builders.js";
 import { cleanDoc, replaceEndOfLine } from "../document/utils.js";
 import createGetVisitorKeys from "../utils/create-get-visitor-keys.js";
+import UnexpectedNodeError from "../utils/unexpected-node-error.js";
 import clean from "./clean.js";
 import {
   countChars,
@@ -24,6 +25,8 @@ import {
 import { printElement } from "./print/element.js";
 import { printChildren } from "./print/children.js";
 import visitorKeys from "./visitor-keys.js";
+
+const getVisitorKeys = createGetVisitorKeys(visitorKeys);
 
 function genericPrint(path, options, print) {
   const node = path.getValue();
@@ -113,7 +116,7 @@ function genericPrint(path, options, print) {
     case "cdata": // Transformed into `text`
     default:
       /* istanbul ignore next */
-      throw new Error(`Unexpected node type ${node.type}`);
+      throw new UnexpectedNodeError(node, "HTML");
   }
 }
 
@@ -123,7 +126,7 @@ const printer = {
   insertPragma,
   massageAstNode: clean,
   embed,
-  getVisitorKeys: createGetVisitorKeys(visitorKeys),
+  getVisitorKeys,
 };
 
 export default printer;

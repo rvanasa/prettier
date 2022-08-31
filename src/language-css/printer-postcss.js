@@ -21,6 +21,7 @@ import {
 } from "../document/builders.js";
 import { removeLines, getDocParts } from "../document/utils.js";
 import createGetVisitorKeys from "../utils/create-get-visitor-keys.js";
+import UnexpectedNodeError from "../utils/unexpected-node-error.js";
 import clean from "./clean.js";
 import embed from "./embed.js";
 import { insertPragma } from "./pragma.js";
@@ -76,21 +77,14 @@ import {
 import { locStart, locEnd } from "./loc.js";
 import printUnit from "./utils/print-unit.js";
 
+const getVisitorKeys = createGetVisitorKeys(visitorKeys);
+
 function shouldPrintComma(options) {
   return options.trailingComma === "es5" || options.trailingComma === "all";
 }
 
 function genericPrint(path, options, print) {
   const node = path.getValue();
-
-  /* istanbul ignore if */
-  if (!node) {
-    return "";
-  }
-
-  if (typeof node === "string") {
-    return node;
-  }
 
   switch (node.type) {
     case "front-matter":
@@ -100,9 +94,10 @@ function genericPrint(path, options, print) {
       const after = node.raws.after.trim();
 
       return [
+        node.frontMatter ? [print("frontMatter"), hardline] : "",
         nodes,
         after ? ` ${after}` : "",
-        getDocParts(nodes).length > 0 ? hardline : "",
+        node.nodes.length > 0 ? hardline : "",
       ];
     }
     case "css-comment": {
@@ -144,10 +139,9 @@ function genericPrint(path, options, print) {
       const isColon = trimmedBetween === ":";
       const isValueAllSpace =
         typeof node.value === "string" && /^ *$/.test(node.value);
+      let value = typeof node.value === "string" ? node.value : print("value");
 
-      let value = hasComposesNode(node)
-        ? removeLines(print("value"))
-        : print("value");
+      value = hasComposesNode(node) ? removeLines(value) : value;
 
       if (!isColon && lastLineHasInlineComment(trimmedBetween)) {
         value = indent([hardline, dedent(value)]);
@@ -213,7 +207,7 @@ function genericPrint(path, options, print) {
         if (node.function) {
           return [
             node.name,
-            print("params"),
+            typeof node.params === "string" ? node.params : print("params"),
             isTemplatePlaceholderNodeWithoutSemiColon ? "" : ";",
           ];
         }
@@ -269,7 +263,7 @@ function genericPrint(path, options, print) {
                   ? hardline
                   : " "
                 : " ",
-              print("params"),
+              typeof node.params === "string" ? node.params : print("params"),
             ]
           : "",
         node.selector ? indent([" ", print("selector")]) : "",
@@ -868,6 +862,10 @@ function genericPrint(path, options, print) {
     }
     case "value-paren_group": {
       const parentNode = path.getParentNode();
+      const printedGroups = path.map(() => {
+        const child = path.getValue();
+        return typeof child === "string" ? child : print();
+      }, "groups");
 
       if (
         parentNode &&
@@ -881,23 +879,13 @@ function genericPrint(path, options, print) {
       ) {
         return [
           node.open ? print("open") : "",
-          join(",", path.map(print, "groups")),
+          join(",", printedGroups),
           node.close ? print("close") : "",
         ];
       }
 
       if (!node.open) {
-        const printed = path.map(print, "groups");
-        const res = [];
-
-        for (let i = 0; i < printed.length; i++) {
-          if (i !== 0) {
-            res.push([",", line]);
-          }
-          res.push(printed[i]);
-        }
-
-        return group(indent(fill(res)));
+        return group(indent(fill(join([",", line], printedGroups))));
       }
 
       const isSCSSMapItem = isSCSSMapItemNode(path, options);
@@ -1014,11 +1002,6 @@ function genericPrint(path, options, print) {
           : line,
       ];
     }
-    // TODO: confirm this code is dead
-    /* istanbul ignore next */
-    case "value-comma": {
-      return [node.value, " "];
-    }
     case "value-string": {
       return printString(
         node.raws.quote + node.value + node.raws.quote,
@@ -1034,9 +1017,11 @@ function genericPrint(path, options, print) {
     case "value-unknown": {
       return node.value;
     }
+
+    case "value-comma": // Handled in `value-comma_group`
     default:
       /* istanbul ignore next */
-      throw new Error(`Unknown postcss type ${JSON.stringify(node.type)}`);
+      throw new UnexpectedNodeError(node, "PostCSS");
   }
 }
 
@@ -1131,7 +1116,7 @@ const printer = {
   embed,
   insertPragma,
   massageAstNode: clean,
-  getVisitorKeys: createGetVisitorKeys(visitorKeys),
+  getVisitorKeys,
 };
 
 export default printer;
